@@ -7,11 +7,15 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.AnalogGyro;
+
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
+import com.ctre.phoenix.*;
+import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import com.kauailabs.navx.*;
+import com.kauailabs.navx.frc.AHRS;
 
 /**
  * This is a sample program that uses mecanum drive with a gyro sensor to
@@ -23,32 +27,27 @@ public class Robot extends IterativeRobot {
   // gyro value of 360 is set to correspond to one full revolution
   private static final double kVoltsPerDegreePerSecond = 0.0128;
 
-  private static final int kFrontLeftChannel = 0;
-  private static final int kRearLeftChannel = 1;
-  private static final int kFrontRightChannel = 2;
-  private static final int kRearRightChannel = 3;
-  private static final int kGyroPort = 0;
-  private static final int kJoystickPort = 0;
 
-  private MecanumDrive m_robotDrive;
-  private final AnalogGyro m_gyro = new AnalogGyro(kGyroPort);
-  private final Joystick m_joystick = new Joystick(kJoystickPort);
+
+  private SrxMecanum m_robotDrive;
+  private final AHRS navX = new AHRS(SPI.Port.kMXP);
+  private final Joystick driveStick = new Joystick(Constants.driveStickChannel);
 
   @Override
   public void robotInit() {
-    Spark frontLeft = new Spark(kFrontLeftChannel);
-    Spark rearLeft = new Spark(kRearLeftChannel);
-    Spark frontRight = new Spark(kFrontRightChannel);
-    Spark rearRight = new Spark(kRearRightChannel);
+    TalonSRX frontLeft = new TalonSRX(Constants.leftFrontDriveChannel);
+    TalonSRX rearLeft = new TalonSRX(Constants.rightFrontDriveChannel);
+    TalonSRX frontRight = new TalonSRX(Constants.leftRearDriveChannel);
+    TalonSRX rearRight = new TalonSRX(Constants.rightRearDriveChannel);
 
     // Invert the left side motors.
     // You may need to change or remove this to match your robot.
     frontLeft.setInverted(true);
     rearLeft.setInverted(true);
 
-    m_robotDrive = new MecanumDrive(frontLeft, rearLeft, frontRight, rearRight);
+    m_robotDrive = new SrxMecanum(frontLeft, rearLeft, frontRight, rearRight);
 
-    m_gyro.setSensitivity(kVoltsPerDegreePerSecond);
+    
   }
 
   /**
@@ -56,7 +55,14 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void teleopPeriodic() {
-    m_robotDrive.driveCartesian(m_joystick.getX(), m_joystick.getY(),
-        m_joystick.getZ(), m_gyro.getAngle());
+    boolean gyroAlive = navX.isConnected();
+    if  (gyroAlive){
+      m_robotDrive.driveCartesian(driveStick.getX(), driveStick.getY(),
+      driveStick.getZ(), navX.getAngle());
+    }else {
+      //  if the navX is failed then avoid passing an unknown number to the drivetrain.
+      m_robotDrive.driveCartesian(driveStick.getX(), driveStick.getY(),
+      driveStick.getZ());
+    }
   }
 }
